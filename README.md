@@ -21,7 +21,7 @@ Sonora stores playlist and track metadata in Supabase Postgres. Uploaded audio f
 
    These values are public project configuration. Keep database access protected by the Row Level Security policies installed by the schema.
 
-6. In **Authentication → URL Configuration**, set the Site URL to `http://localhost:3000` and add it to the allowed Redirect URLs.
+6. In **Authentication → URL Configuration**, set the Site URL to your production website URL (use `http://localhost:3000` only for local web development). Add the web URLs you use and `com.sonora.music://auth/callback` to the allowed Redirect URLs. The native callback is required even when the Site URL is set to localhost; otherwise Supabase can send the phone's browser to `localhost:3000`, which points back to the phone rather than your computer.
 7. Under **Authentication → Providers → Email**, enable Email. If **Confirm email** is enabled, users must open the confirmation link sent after signup before signing in. If they try to sign in early, Sonora explains the issue and offers to resend the link. To allow immediate sign-in without email verification, turn **Confirm email** off in Supabase; this is a project-wide security setting.
 8. Supabase's default email service is for testing: it is limited to about two messages per hour and only sends to authorized project team addresses. If signup shows an email sending error, stop retrying and check **Authentication → Users** to see whether the account was created. For signup emails to other addresses and reliable delivery, configure a custom SMTP provider under **Authentication → SMTP Settings**. See [Supabase's custom SMTP guide](https://supabase.com/docs/guides/auth/auth-smtp).
 9. Restart the Quasar development server after changing `.env`.
@@ -84,8 +84,29 @@ GitHub stores the source; Vercel builds and hosts the app. A successful local bu
 The Android app is a Capacitor wrapper around the same Sonora web app. It uses the same Supabase project and cloud tables; the APK does not contain a separate database. Capacitor support is already scaffolded with app ID `com.sonora.music` and app name **Sonora Music**.
 
 1. Install Node.js using a version supported by `package.json`, Android Studio with the Android SDK platform/build tools, and **JDK 21**. Capacitor 8's Android sources require Java 21; Java 8 and Java 17 are not sufficient. Make sure `JAVA_HOME`, `ANDROID_HOME` or `ANDROID_SDK_ROOT`, and Android SDK licenses are configured.
+
+   On Windows, install Eclipse Temurin JDK 21 if Java is missing:
+
+   ```powershell
+   winget install --id EclipseAdoptium.Temurin.21.JDK -e
+   ```
+
+   Open a new PowerShell terminal, then set `JAVA_HOME` to the installed JDK and verify Java:
+
+   ```powershell
+   $jdk = Get-ChildItem "$env:ProgramFiles\Eclipse Adoptium" -Directory |
+     Where-Object { $_.Name -like 'jdk-21*' } |
+     Select-Object -First 1
+   if (-not $jdk) { throw 'JDK 21 was not found under Program Files\Eclipse Adoptium.' }
+   [Environment]::SetEnvironmentVariable('JAVA_HOME', $jdk.FullName, 'User')
+   $env:JAVA_HOME = $jdk.FullName
+   $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+   java -version
+   ```
+
+   Confirm the output reports version 21, then restart VS Code so new terminals inherit `JAVA_HOME`.
 2. Create `.env` in the project root using `.env.example`. Use the same `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as the website, plus a restricted `VITE_YOUTUBE_API_KEY` if needed. These Vite values are embedded into the APK, so use only public/publishable keys—never a Supabase service-role key. Rebuild the APK whenever these values change.
-3. In Supabase **Authentication → URL Configuration → Redirect URLs**, add the native callback `com.sonora.music://auth/callback`. The Android app uses that deep link to return from Google sign-in, signup confirmation, and password reset.
+3. In Supabase **Authentication → URL Configuration → Redirect URLs**, add this exact native callback: `com.sonora.music://auth/callback`. The Android app uses that deep link to return from Google sign-in, signup confirmation, and password reset. This is separate from the Google Cloud OAuth client's authorized redirect URI, which must remain the Supabase callback URL shown in **Authentication → Providers → Google**.
 4. From the project root, build and sync the Android project:
 
    ```powershell
@@ -110,7 +131,7 @@ The Android app is a Capacitor wrapper around the same Sonora web app. It uses t
 
    The sign-in page and library navigation link to `/downloads/sonora-music.apk`. Repeat the copy and redeploy whenever you publish an updated APK.
 
-6. To install it on a connected Android phone with USB debugging enabled:
+6. Install the newly built APK on a connected Android phone with USB debugging enabled. Rebuilding and reinstalling matters: an older APK may still send Google sign-in back to its previous web URL.
 
    ```powershell
    adb devices
@@ -118,6 +139,8 @@ The Android app is a Capacitor wrapper around the same Sonora web app. It uses t
    ```
 
    Or copy that APK to the phone and install it manually. Test sign-in, cloud library loading, track playback, Google sign-in, signup/reset links, and YouTube search. The Supabase project must allow the native callback URL, and the YouTube API key must allow the Capacitor WebView origin `https://localhost/*`.
+
+   If Google sign-in finishes at `localhost:3000` or shows `ERR_CONNECTION_REFUSED`, check that the native callback above is in Supabase's **Redirect URLs**, then rebuild and reinstall the APK. `localhost` on the phone is the phone itself, not the development computer. In the Google account chooser/consent flow, Google should return to Supabase first; Supabase should then open the installed Sonora app through `com.sonora.music://auth/callback`.
 
 The local `.env`, Gradle build outputs, local SDK path, and generated Android web assets are ignored by Git. Commit the Capacitor config and Android project, not local credentials or build artifacts.
 
