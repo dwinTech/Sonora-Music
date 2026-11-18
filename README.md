@@ -105,7 +105,7 @@ The Android app is a Capacitor wrapper around the same Sonora web app. It uses t
    ```
 
    Confirm the output reports version 21, then restart VS Code so new terminals inherit `JAVA_HOME`.
-2. Create `.env` in the project root using `.env.example`. Use the same `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as the website, plus a restricted `VITE_YOUTUBE_API_KEY` if needed. These Vite values are embedded into the APK, so use only public/publishable keys—never a Supabase service-role key. Rebuild the APK whenever these values change.
+2. Use the project-root `.env` (the same file used by desktop/web development), not `src-capacitor/.env`. Quasar reads the root file for both the web app and the Capacitor build. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to values from the same Supabase project; use those exact `VITE_` names rather than `SUPABASE_URL` or `SUPABASE_ANON_KEY`. Add a restricted `VITE_YOUTUBE_API_KEY` if needed. These Vite values are embedded into the APK, so use only public/publishable keys—never a Supabase service-role key. Restart the dev server after changing the file, and rebuild and reinstall the APK whenever these values change.
 3. In Supabase **Authentication → URL Configuration → Redirect URLs**, add this exact native callback: `com.sonora.music://auth/callback`. The Android app uses that deep link to return from Google sign-in, signup confirmation, and password reset. This is separate from the Google Cloud OAuth client's authorized redirect URI, which must remain the Supabase callback URL shown in **Authentication → Providers → Google**.
 4. From the project root, build and sync the Android project:
 
